@@ -11,7 +11,6 @@ st.set_page_config(page_title="Asistencia - Estancia San Francisco", layout="cen
 
 st.markdown("""
     <style>
-    /* Estilo base botones */
     div.stButton > button {
         height: 120px;          
         font-size: 30px;        
@@ -23,7 +22,7 @@ st.markdown("""
     }
     div.stButton > button:hover { transform: scale(1.03); }
 
-    /* BOTÓN 1 (ENTRADA) - Verde */
+    /* BOTÓN 1 (ENTRADA) */
     div[data-testid="column"]:nth-of-type(1) div.stButton > button {
         background-color: #2e7d32; 
         color: white;             
@@ -31,7 +30,7 @@ st.markdown("""
     }
     div[data-testid="column"]:nth-of-type(1) div.stButton > button:hover { background-color: #1b5e20; }
 
-    /* BOTÓN 2 (SALIDA) - Amarillo */
+    /* BOTÓN 2 (SALIDA) */
     div[data-testid="column"]:nth-of-type(2) div.stButton > button {
         background-color: #ffca28; 
         color: #333333;           
@@ -39,7 +38,6 @@ st.markdown("""
     }
     div[data-testid="column"]:nth-of-type(2) div.stButton > button:hover { background-color: #ffb300; }
 
-    /* Texto Selectbox */
     div[data-baseweb="select"] > div { font-size: 18px; }
     </style>
 """, unsafe_allow_html=True)
@@ -47,39 +45,28 @@ st.markdown("""
 # --- 2. CONEXIÓN A GOOGLE SHEETS ---
 @st.cache_resource
 def conectar_sheets():
-    # Definir permisos
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-    
-    # Tomar credenciales leyendo la ruta exacta de tu st.secrets
     credenciales_dict = dict(st.secrets["connections"]["gsheets"])
-    
-    # Autorizar conexión con la librería moderna
     creds = Credentials.from_service_account_info(credenciales_dict, scopes=scopes)
     cliente = gspread.authorize(creds)
-    
-    # Abrimos el archivo usando tu ID único de Google Sheets
     id_planilla = "1fyiKYB0_3HV4qI58rMVBL8TVsgX8Cs5i1RoghAWlHoY"
     archivo_sheets = cliente.open_by_key(id_planilla)
-    
-    # Apuntamos a la pestaña "Asistencia"
     hoja = archivo_sheets.worksheet("Asistencia")
     return hoja
 
-# Intentar conectar
 try:
     hoja_asistencia = conectar_sheets()
 except Exception as e:
     st.error(f"Error al conectar con Google Sheets: {e}")
     st.stop()
 
-# --- 3. INTERFAZ Y LÓGICA ---
+# --- 3. INTERFAZ Y LÓGICA DE FICHADA ---
 st.title("Registro de Personal")
 st.markdown("Seleccioná tu nombre y registrá tu horario.")
 
-# Nombres de tu equipo
 empleados = [
     "Seleccionar...", 
     "Santiago", 
@@ -100,89 +87,133 @@ if nombre != "Seleccionar...":
     
     with col1:
         if st.button("ENTRADA", use_container_width=True):
-            hora_actual = datetime.now(zona_ar).strftime("%d/%m/%Y %H:%M:%S")
-            # Enviar a Google Sheets
-            hoja_asistencia.append_row([hora_actual, nombre, "ENTRADA"])
-            st.success(f"Entrada registrada.\n\n**{nombre}** - {hora_actual}")
+            ahora = datetime.now(zona_ar)
+            fecha_hoy = ahora.strftime("%d/%m/%Y")
+            hora_actual = ahora.strftime("%d/%m/%Y %H:%M:%S")
+            
+            # Validación de fichaje doble
+            datos = hoja_asistencia.get_all_records()
+            ya_ficho = False
+            if datos:
+                df = pd.DataFrame(datos)
+                # Filtramos si existe registro de hoy, de esta persona, que sea ENTRADA
+                filtro = (df['Fecha y Hora'].str.startswith(fecha_hoy)) & (df['Empleado'] == nombre) & (df['Acción'] == 'ENTRADA')
+                if not df[filtro].empty:
+                    ya_ficho = True
+            
+            if ya_ficho:
+                st.error(f"⚠️ {nombre}, ya registraste tu ENTRADA el día de hoy.")
+            else:
+                hoja_asistencia.append_row([hora_actual, nombre, "ENTRADA"])
+                st.success(f"Entrada registrada.\n\n**{nombre}** - {hora_actual}")
             
     with col2:
         if st.button("SALIDA", use_container_width=True):
-            hora_actual = datetime.now(zona_ar).strftime("%d/%m/%Y %H:%M:%S")
-            # Enviar a Google Sheets
-            hoja_asistencia.append_row([hora_actual, nombre, "SALIDA"])
-            st.warning(f"Salida registrada.\n\n**{nombre}** - {hora_actual}")
-
+            ahora = datetime.now(zona_ar)
+            fecha_hoy = ahora.strftime("%d/%m/%Y")
+            hora_actual = ahora.strftime("%d/%m/%Y %H:%M:%S")
+            
+            # Validación de fichaje doble
+            datos = hoja_asistencia.get_all_records()
+            ya_ficho = False
+            if datos:
+                df = pd.DataFrame(datos)
+                # Filtramos si existe registro de hoy, de esta persona, que sea SALIDA
+                filtro = (df['Fecha y Hora'].str.startswith(fecha_hoy)) & (df['Empleado'] == nombre) & (df['Acción'] == 'SALIDA')
+                if not df[filtro].empty:
+                    ya_ficho = True
+                    
+            if ya_ficho:
+                st.error(f"⚠️ {nombre}, ya registraste tu SALIDA el día de hoy.")
+            else:
+                hoja_asistencia.append_row([hora_actual, nombre, "SALIDA"])
+                st.warning(f"Salida registrada.\n\n**{nombre}** - {hora_actual}")
 
 
 # --- 4. PANEL DE ADMINISTRACIÓN (SIDEBAR) ---
 with st.sidebar:
     st.markdown("### ⚙️ Panel de Administración")
     
-    # Campo de contraseña
     clave_ingresada = st.text_input("Clave de acceso:", type="password")
     
-    # Verificamos si la clave coincide con la de los Secrets
     if clave_ingresada == st.secrets["general"]["admin_password"]:
         st.success("Acceso concedido")
         st.markdown("---")
         
-        # Selector de rango de fechas
         rango_fechas = st.date_input("Seleccionar período a exportar:", [])
         
-        # Solo avanzamos si el usuario seleccionó un inicio y un fin
         if len(rango_fechas) == 2:
             fecha_inicio, fecha_fin = rango_fechas
             
             if st.button("Generar PDF de Asistencia", use_container_width=True):
                 with st.spinner("Procesando datos..."):
-                    # 1. Traer todos los datos de la hoja
                     datos = hoja_asistencia.get_all_records()
                     
                     if not datos:
                         st.warning("No hay registros todavía.")
                     else:
-                        # 2. Convertir a DataFrame de Pandas
                         df = pd.DataFrame(datos)
                         
-                        # Extraer solo la parte de la fecha (DD/MM/YYYY) para filtrar
-                        # Asumiendo que guardaste como "DD/MM/YYYY HH:MM:SS"
-                        df['Solo_Fecha'] = pd.to_datetime(df['Fecha y Hora'], format="%d/%m/%Y %H:%M:%S").dt.date
+                        # 1. Transformación de datos (Data Science en acción)
+                        # Convertimos el string a objeto datetime para poder filtrar y separar
+                        df['Datetime'] = pd.to_datetime(df['Fecha y Hora'], format="%d/%m/%Y %H:%M:%S")
+                        df['Fecha_str'] = df['Datetime'].dt.strftime('%d/%m/%Y')
+                        df['Hora_str'] = df['Datetime'].dt.strftime('%H:%M:%S')
+                        df['Solo_Fecha'] = df['Datetime'].dt.date
                         
-                        # 3. Filtrar por el rango seleccionado
+                        # 2. Filtramos por el rango seleccionado
                         mask = (df['Solo_Fecha'] >= fecha_inicio) & (df['Solo_Fecha'] <= fecha_fin)
                         df_filtrado = df.loc[mask].copy()
                         
                         if df_filtrado.empty:
                             st.info("No hay registros para este período.")
                         else:
-                            # 4. Mostrar los datos en pantalla para revisión rápida
-                            st.write(f"Registros del {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}:")
-                            st.dataframe(df_filtrado[['Fecha y Hora', 'Empleado', 'Acción']], hide_index=True)
+                            # 3. Pivot Table: agrupamos todo en una sola fila por persona y día
+                            df_pivot = df_filtrado.pivot_table(
+                                index=['Fecha_str', 'Empleado'], 
+                                columns='Acción', 
+                                values='Hora_str', 
+                                aggfunc='first'
+                            ).reset_index()
                             
-                            # 5. Generar el PDF
+                            # Aseguramos que existan las columnas, por si nadie fichó entrada o salida
+                            if 'ENTRADA' not in df_pivot.columns: df_pivot['ENTRADA'] = '-'
+                            if 'SALIDA' not in df_pivot.columns: df_pivot['SALIDA'] = '-'
+                            
+                            # Llenamos los espacios vacíos (gente que olvidó fichar) con un guion
+                            df_pivot = df_pivot.fillna('-')
+                            
+                            # Ordenamos por fecha para que el PDF quede cronológico
+                            df_pivot['Fecha_sort'] = pd.to_datetime(df_pivot['Fecha_str'], format="%d/%m/%Y")
+                            df_pivot = df_pivot.sort_values(by=['Fecha_sort', 'Empleado']).drop(columns=['Fecha_sort'])
+
+                            st.write("Vista previa de los datos a exportar:")
+                            st.dataframe(df_pivot, hide_index=True)
+                            
+                            # 4. Generación del PDF
                             pdf = FPDF()
                             pdf.add_page()
                             pdf.set_font("Arial", size=12)
                             
-                            # Título del PDF
-                            pdf.cell(200, 10, txt=f"Reporte de Asistencia - Estancia San Francisco", ln=True, align='C')
+                            pdf.cell(200, 10, txt="Reporte de Asistencia - Estancia San Francisco", ln=True, align='C')
                             pdf.cell(200, 10, txt=f"Periodo: {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}", ln=True, align='C')
                             pdf.ln(10)
                             
-                            # Encabezados de tabla en PDF
+                            # Encabezados
                             pdf.set_font("Arial", 'B', 10)
-                            pdf.cell(60, 10, "Fecha y Hora", border=1)
+                            pdf.cell(40, 10, "Fecha", border=1)
                             pdf.cell(60, 10, "Empleado", border=1)
-                            pdf.cell(40, 10, "Acción", border=1, ln=True)
+                            pdf.cell(45, 10, "Hora Entrada", border=1)
+                            pdf.cell(45, 10, "Hora Salida", border=1, ln=True)
                             
-                            # Filas de datos
+                            # Filas
                             pdf.set_font("Arial", '', 10)
-                            for index, row in df_filtrado.iterrows():
-                                pdf.cell(60, 10, str(row['Fecha y Hora']), border=1)
+                            for index, row in df_pivot.iterrows():
+                                pdf.cell(40, 10, str(row['Fecha_str']), border=1)
                                 pdf.cell(60, 10, str(row['Empleado']), border=1)
-                                pdf.cell(40, 10, str(row['Acción']), border=1, ln=True)
+                                pdf.cell(45, 10, str(row['ENTRADA']), border=1)
+                                pdf.cell(45, 10, str(row['SALIDA']), border=1, ln=True)
                             
-                            # Guardar PDF en memoria y crear botón de descarga
                             pdf_output = pdf.output(dest='S').encode('latin-1')
                             
                             st.download_button(

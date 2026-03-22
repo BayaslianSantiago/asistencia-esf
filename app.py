@@ -3,6 +3,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import pandas as pd
+from fpdf import FPDF
 
 # --- 1. CONFIGURACIÓN DE PÁGINA Y CSS ---
 st.set_page_config(page_title="Asistencia - Estancia San Francisco", layout="centered")

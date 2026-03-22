@@ -9,28 +9,52 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------------
-# TRUCO DE CSS PARA BOTONES GIGANTES
-# Esto afecta a todos los botones 'st.button' de la aplicación
+# CSS PARA BOTONES COLOREADOS Y GIGANTES
+# Targeteamos específicamente los botones dentro de las columnas
 # ------------------------------------------------------------------
 st.markdown("""
     <style>
-    /* Estilo general para los botones st.button */
+    /* Estilo BASE común para ambos botones gigantes */
     div.stButton > button {
-        height: 120px;          /* Altura del botón (enorme) */
-        font-size: 30px;        /* Tamaño de la letra */
-        font-weight: bold;      /* Letra negrita */
-        border-radius: 15px;    /* Bordes redondeados */
-        width: 100%;            /* Ocupar todo el ancho de la columna */
-        transition: all 0.3s;   /* Animación suave al pasar el mouse */
+        height: 120px;          /* Altura enorme */
+        font-size: 30px;        /* Letra gigante */
+        font-weight: bold;      /* Negrita */
+        border-radius: 20px;    /* Bordes muy redondeados */
+        width: 100%;            /* Ancho completo de la columna */
+        transition: all 0.2s;   /* Animación suave */
+        border: none;           /* Sin borde por defecto */
     }
     
-    /* Efecto al pasar el mouse (para desktop) */
+    /* Efecto general al pasar el mouse */
     div.stButton > button:hover {
-        opacity: 0.8;
-        transform: scale(1.02); /* Se agranda un poquito */
+        transform: scale(1.03); /* Se agranda un poquito */
     }
-    
-    /* Estilo específico para el texto 'Empleado:' del selectbox */
+
+    /* --- ESTILO ESPECÍFICO PARA EL BOTÓN 1 (ENTRADA) --- */
+    /* Lo buscamos dentro de la primera columna */
+    div[data-testid="column"]:nth-of-type(1) div.stButton > button {
+        background-color: #2e7d32; /* Verde esmeralda oscuro */
+        color: white;             /* Texto blanco para contraste */
+        box-shadow: 0 4px 15px rgba(46, 125, 50, 0.4); /* Sombra verde */
+    }
+    /* Hover específico Entrada */
+    div[data-testid="column"]:nth-of-type(1) div.stButton > button:hover {
+        background-color: #1b5e20; /* Verde más oscuro */
+    }
+
+    /* --- ESTILO ESPECÍFICO PARA EL BOTÓN 2 (SALIDA) --- */
+    /* Lo buscamos dentro de la segunda columna */
+    div[data-testid="column"]:nth-of-type(2) div.stButton > button {
+        background-color: #d32f2f; /* Rojo intenso */
+        color: white;             /* Texto blanco para contraste */
+        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); /* Sombra roja */
+    }
+    /* Hover específico Salida */
+    div[data-testid="column"]:nth-of-type(2) div.stButton > button:hover {
+        background-color: #b71c1c; /* Rojo más oscuro */
+    }
+
+    /* Estilo para el texto 'Empleado:' del selectbox */
     div[data-baseweb="select"] > div {
         font-size: 18px;
     }
@@ -68,7 +92,6 @@ if nombre != "Seleccionar...":
         # Botón de ENTRADA
         if st.button("ENTRADA", use_container_width=True):
             hora_actual = datetime.now(zona_ar).strftime("%d/%m/%Y %H:%M:%S")
-            # Feedback visual (los mensajes st.success también se pueden customizar con CSS si hiciera falta)
             st.success(f"Entrada registrada.\n\n**{nombre}** - {hora_actual}")
             
             # TODO: Conectar a Google Sheets
@@ -77,6 +100,7 @@ if nombre != "Seleccionar...":
         # Botón de SALIDA
         if st.button("SALIDA", use_container_width=True):
             hora_actual = datetime.now(zona_ar).strftime("%d/%m/%Y %H:%M:%S")
-            st.warning(f"Salida registrada.\n\n**{nombre}** - {hora_actual}")
+            # Usamos st.error para la salida, combinando con el color rojo
+            st.error(f"Salida registrada.\n\n**{nombre}** - {hora_actual}")
             
             # TODO: Conectar a Google Sheets

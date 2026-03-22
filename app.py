@@ -1,6 +1,6 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -9,6 +9,7 @@ st.set_page_config(page_title="Asistencia - Estancia San Francisco", layout="cen
 
 st.markdown("""
     <style>
+    /* Estilo base botones */
     div.stButton > button {
         height: 120px;          
         font-size: 30px;        
@@ -20,7 +21,7 @@ st.markdown("""
     }
     div.stButton > button:hover { transform: scale(1.03); }
 
-    /* BOTÓN 1 (ENTRADA) */
+    /* BOTÓN 1 (ENTRADA) - Verde */
     div[data-testid="column"]:nth-of-type(1) div.stButton > button {
         background-color: #2e7d32; 
         color: white;             
@@ -28,7 +29,7 @@ st.markdown("""
     }
     div[data-testid="column"]:nth-of-type(1) div.stButton > button:hover { background-color: #1b5e20; }
 
-    /* BOTÓN 2 (SALIDA) */
+    /* BOTÓN 2 (SALIDA) - Amarillo */
     div[data-testid="column"]:nth-of-type(2) div.stButton > button {
         background-color: #ffca28; 
         color: #333333;           
@@ -36,6 +37,7 @@ st.markdown("""
     }
     div[data-testid="column"]:nth-of-type(2) div.stButton > button:hover { background-color: #ffb300; }
 
+    /* Texto Selectbox */
     div[data-baseweb="select"] > div { font-size: 18px; }
     </style>
 """, unsafe_allow_html=True)
@@ -44,20 +46,23 @@ st.markdown("""
 @st.cache_resource
 def conectar_sheets():
     # Definir permisos
-    scope = [
-        "https://spreadsheets.google.com/feeds",
+    scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive.file",
         "https://www.googleapis.com/auth/drive"
     ]
-    # Tomar credenciales de secrets.toml
-    credenciales_dict = dict(st.secrets["gcp_service_account"])
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(credenciales_dict, scope)
+    
+    # Tomar credenciales leyendo la ruta exacta de tu st.secrets
+    credenciales_dict = dict(st.secrets["connections"]["gsheets"])
+    
+    # Autorizar conexión con la librería moderna
+    creds = Credentials.from_service_account_info(credenciales_dict, scopes=scopes)
     cliente = gspread.authorize(creds)
     
-    # IMPORTANTE: Reemplazá esto con el nombre exacto de tu archivo de sheets
-    archivo_sheets = cliente.open("Base de Datos - Cierre Caja")
-    # Apuntamos a la pestaña que acabamos de crear
+    # Abrimos el archivo usando tu ID único de Google Sheets
+    id_planilla = "1fyiKYB0_3HV4qI58rMVBL8TVsgX8Cs5i1RoghAWlHoY"
+    archivo_sheets = cliente.open_by_key(id_planilla)
+    
+    # Apuntamos a la pestaña "Asistencia"
     hoja = archivo_sheets.worksheet("Asistencia")
     return hoja
 
@@ -72,6 +77,7 @@ except Exception as e:
 st.title("Registro de Personal")
 st.markdown("Seleccioná tu nombre y registrá tu horario.")
 
+# Nombres de tu equipo
 empleados = [
     "Seleccionar...", 
     "Santiago", 
@@ -93,13 +99,13 @@ if nombre != "Seleccionar...":
     with col1:
         if st.button("ENTRADA", use_container_width=True):
             hora_actual = datetime.now(zona_ar).strftime("%d/%m/%Y %H:%M:%S")
-            # Guardar en Sheets (Fila: Fecha y Hora, Empleado, Acción)
+            # Enviar a Google Sheets
             hoja_asistencia.append_row([hora_actual, nombre, "ENTRADA"])
             st.success(f"Entrada registrada.\n\n**{nombre}** - {hora_actual}")
             
     with col2:
         if st.button("SALIDA", use_container_width=True):
             hora_actual = datetime.now(zona_ar).strftime("%d/%m/%Y %H:%M:%S")
-            # Guardar en Sheets (Fila: Fecha y Hora, Empleado, Acción)
+            # Enviar a Google Sheets
             hoja_asistencia.append_row([hora_actual, nombre, "SALIDA"])
             st.warning(f"Salida registrada.\n\n**{nombre}** - {hora_actual}")

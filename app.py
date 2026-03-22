@@ -69,13 +69,13 @@ st.markdown("Seleccioná tu nombre y registrá tu horario.")
 
 empleados = [
     "Seleccionar...", 
-    "Santiago", 
-    "Compañero 2", 
-    "Compañero 3", 
-    "Compañero 4", 
-    "Compañero 5", 
-    "Compañero 6", 
-    "Compañero 7"
+    "Brian", Brian Erika Fernanda Julieta Mariel Oriana Santiago
+    "Erika", 
+    "Fernanda", 
+    "Juliera", 
+    "Mariel", 
+    "Oriana", 
+    "Santiago"
 ]
 
 nombre = st.selectbox("Empleado:", empleados)

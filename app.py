@@ -120,7 +120,7 @@ with st.sidebar:
     clave_ingresada = st.text_input("Clave de acceso:", type="password")
     
     # Verificamos si la clave coincide con la de los Secrets
-    if clave_ingresada == st.secrets["admin_password"]:
+    if clave_ingresada == st.secrets["general"]["admin_password"]:
         st.success("Acceso concedido")
         st.markdown("---")
         

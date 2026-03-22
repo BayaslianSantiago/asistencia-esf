@@ -109,3 +109,83 @@ if nombre != "Seleccionar...":
             # Enviar a Google Sheets
             hoja_asistencia.append_row([hora_actual, nombre, "SALIDA"])
             st.warning(f"Salida registrada.\n\n**{nombre}** - {hora_actual}")
+
+
+
+# --- 4. PANEL DE ADMINISTRACIÓN (SIDEBAR) ---
+with st.sidebar:
+    st.markdown("### ⚙️ Panel de Administración")
+    
+    # Campo de contraseña
+    clave_ingresada = st.text_input("Clave de acceso:", type="password")
+    
+    # Verificamos si la clave coincide con la de los Secrets
+    if clave_ingresada == st.secrets["admin_password"]:
+        st.success("Acceso concedido")
+        st.markdown("---")
+        
+        # Selector de rango de fechas
+        rango_fechas = st.date_input("Seleccionar período a exportar:", [])
+        
+        # Solo avanzamos si el usuario seleccionó un inicio y un fin
+        if len(rango_fechas) == 2:
+            fecha_inicio, fecha_fin = rango_fechas
+            
+            if st.button("Generar PDF de Asistencia", use_container_width=True):
+                with st.spinner("Procesando datos..."):
+                    # 1. Traer todos los datos de la hoja
+                    datos = hoja_asistencia.get_all_records()
+                    
+                    if not datos:
+                        st.warning("No hay registros todavía.")
+                    else:
+                        # 2. Convertir a DataFrame de Pandas
+                        df = pd.DataFrame(datos)
+                        
+                        # Extraer solo la parte de la fecha (DD/MM/YYYY) para filtrar
+                        # Asumiendo que guardaste como "DD/MM/YYYY HH:MM:SS"
+                        df['Solo_Fecha'] = pd.to_datetime(df['Fecha y Hora'], format="%d/%m/%Y %H:%M:%S").dt.date
+                        
+                        # 3. Filtrar por el rango seleccionado
+                        mask = (df['Solo_Fecha'] >= fecha_inicio) & (df['Solo_Fecha'] <= fecha_fin)
+                        df_filtrado = df.loc[mask].copy()
+                        
+                        if df_filtrado.empty:
+                            st.info("No hay registros para este período.")
+                        else:
+                            # 4. Mostrar los datos en pantalla para revisión rápida
+                            st.write(f"Registros del {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}:")
+                            st.dataframe(df_filtrado[['Fecha y Hora', 'Empleado', 'Acción']], hide_index=True)
+                            
+                            # 5. Generar el PDF
+                            pdf = FPDF()
+                            pdf.add_page()
+                            pdf.set_font("Arial", size=12)
+                            
+                            # Título del PDF
+                            pdf.cell(200, 10, txt=f"Reporte de Asistencia - Estancia San Francisco", ln=True, align='C')
+                            pdf.cell(200, 10, txt=f"Periodo: {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}", ln=True, align='C')
+                            pdf.ln(10)
+                            
+                            # Encabezados de tabla en PDF
+                            pdf.set_font("Arial", 'B', 10)
+                            pdf.cell(60, 10, "Fecha y Hora", border=1)
+                            pdf.cell(60, 10, "Empleado", border=1)
+                            pdf.cell(40, 10, "Acción", border=1, ln=True)
+                            
+                            # Filas de datos
+                            pdf.set_font("Arial", '', 10)
+                            for index, row in df_filtrado.iterrows():
+                                pdf.cell(60, 10, str(row['Fecha y Hora']), border=1)
+                                pdf.cell(60, 10, str(row['Empleado']), border=1)
+                                pdf.cell(40, 10, str(row['Acción']), border=1, ln=True)
+                            
+                            # Guardar PDF en memoria y crear botón de descarga
+                            pdf_output = pdf.output(dest='S').encode('latin-1')
+                            
+                            st.download_button(
+                                label="⬇️ Descargar Reporte en PDF",
+                                data=pdf_output,
+                                file_name=f"Asistencia_{fecha_inicio}_al_{fecha_fin}.pdf",
+                                mime="application/pdf"
+                            )

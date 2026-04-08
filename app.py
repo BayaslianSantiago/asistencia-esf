@@ -72,7 +72,7 @@ empleados = [
     "Brian",
     "Erika", 
     "Fernanda", 
-    "Juliera", 
+    "Julieta", 
     "Mariel", 
     "Oriana", 
     "Santiago"

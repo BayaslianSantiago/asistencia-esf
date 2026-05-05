@@ -69,7 +69,6 @@ st.markdown("Seleccioná tu nombre y registrá tu horario.")
 
 empleados = [
     "Seleccionar...", 
-    "Brian",
     "Erika", 
     "Fernanda", 
     "Julieta", 
